@@ -4,17 +4,17 @@ Repeat-Accumulate error correction code is a flavor of LDPC with very simple enc
 
 In this toy example we will be transmitting the following 64x64 black and white image:
 
-[Original 64x64 bitmap]
+[Original 64x64 bitmap](original.pbm)
 
 Most real data will have less redundancy, but here redundancy is good because it will help see the errors.
 
 As a baseline, try simplest possible error correction first: send the same data four times. To simulate channel noise, pull random numbers from normal distribution and add to the transmitted signal. In this example signal to noise ratio is kept at pretty sporty 2 dB.
 
-[Repeated four times, with noise added]
+[Repeated four times, with noise added](received_repeat.pgm)
 
 On the receiving end, average received copies to recover the original:
 
-[Corrected by averaging four transmissions]
+[Corrected by averaging four transmissions](corrected_repeat.pbm)
 
 There are still 148 bits that flipped. Not great. Enter the Repeat-Accumulate algorithm:
 
@@ -26,27 +26,27 @@ There are still 148 bits that flipped. Not great. Enter the Repeat-Accumulate al
 
 Here it is used as a systematic code with *Q=3*, so first 64x64x3 bits go through the above logic, and the last 64x64 bits contain a copy of the orginal. Here is the transmitted message after adding exactly the same noise as in the first example:
 
-[Systematic repeat-accumulate code, with noise added]
+[Systematic repeat-accumulate code, with noise added](received_ra.pgm)
 
 The decoding algorithm is iterative. Below are the intermediate results.
 
 1 iteration:
-[RA decoder output after 1 iteration]
+[RA decoder output after 1 iteration](corrected_ra_01.pbm)
 
 5 iterations:
-[RA decoder output after 5 iterations]
+[RA decoder output after 5 iterations](corrected_ra_05.pbm)
 
 10 iterations:
-[RA decoder output after 10 iterations]
+[RA decoder output after 10 iterations](corrected_ra_10.pbm)
 
 15 iterations:
-[RA decoder output after 15 iterations]
+[RA decoder output after 15 iterations](corrected_ra_15.pbm)
 
 20 iterations:
-[RA decoder output after 20 iterations]
+[RA decoder output after 20 iterations](corrected_ra_20.pbm)
 
 25 iterations:
-[RA decoder output after 25 iterations]
+[RA decoder output after 25 iterations](corrected_ra_25.pbm)
 
 No errors. Pretty impressive.
 
