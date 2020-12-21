@@ -28,7 +28,7 @@ Here it is used as a systematic code with *Q=3*, so first 64x64x3 bits go throug
 
 ![Systematic repeat-accumulate code, with noise added](received_ra.png)
 
-The decoding algorithm is iterative. Below are the intermediate results.
+Decoding algorithm is iterative. Below are the intermediate results.
 
 ![RA decoder output after 1 iteration](corrected_ra_01.png) ![RA decoder output after 5 iterations](corrected_ra_05.png) ![RA decoder output after 10 iterations](corrected_ra_10.png) ![RA decoder output after 15 iterations](corrected_ra_15.png) ![RA decoder output after 20 iterations](corrected_ra_20.png) ![RA decoder output after 25 iterations](corrected_ra_25.png)
 
