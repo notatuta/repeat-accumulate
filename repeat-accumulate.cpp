@@ -10,6 +10,7 @@
 const int Q = 3; // number of bit repetitions
 const int B = 64 * 64; // number of information bits
 
+// Transmit by column rather than by row to use less screen real estate
 std::bitset<64 * 64> get_original_bits(void)
 {
   const char cat_pbm[] = "P1\n"
@@ -79,9 +80,9 @@ std::bitset<64 * 64> get_original_bits(void)
   "0000000000000000000000000000000000000000000000000000000000000000\n"
   "0000000000000000000000000000000000000000000000000000000000000000\n";
   std::bitset<64 * 64> bits;
-  for (int row = 0; row < 64; row++) {
-    for (int col = 0; col < 64; col++) {
-      bits[row * 64 + col] = cat_pbm[9 + row * 65 + col] == '0' ? 0 : 1;
+  for (int col = 0; col < 64; col++) {
+    for (int row = 0; row < 64; row++) {
+      bits[col * 64 + row] = cat_pbm[9 + row * 65 + col] == '0' ? 0 : 1;
     }
   }
   return bits;
@@ -92,10 +93,9 @@ void write_pbm(const char* filename, const std::bitset<64 * 64> bits)
   FILE* f = fopen(filename, "w");
   if (f) {
     fprintf(f, "P1\n64 64\n");
-    int i = 0;
     for (int row = 0; row < 64; row++) {
       for (int col = 0; col < 64; col++) {
-        fprintf(f, "%c", bits[i++] ? '1' : '0');
+        fprintf(f, "%c", bits[col * 64 + row] ? '1' : '0');
       }
       fprintf(f, "\n");
     }
@@ -109,15 +109,10 @@ void write_pgm(const char* filename, const double pieces[64 * 64 * (Q + 1)])
 {
   FILE* f = fopen(filename, "w");
   if (f) {
-    fprintf(f, "P2\n128 128\n255\n");
-    for (int row = 0; row < 128; row++) {
-      for (int col = 0; col < 128; col++) {
-        int grid_row = row / 64;
-        int grid_col = col / 64;
-        int frame_row = row % 64;
-        int frame_col = col % 64;
-        int index = (grid_row * 2 + grid_col) * 64 * 64 + frame_row * 64 + frame_col;
-        double intensity = (2. - pieces[index]) * 256 / 4;
+    fprintf(f, "P2\n256 64\n255\n");
+    for (int row = 0; row < 64; row++) {
+      for (int col = 0; col < 256; col++) {
+        double intensity = (2. - pieces[col * 64 + row]) * 256 / 4;
         if (intensity < 0) intensity = 0;
         if (intensity > 255) intensity = 255;
         fprintf(f, "%d ", (int)intensity); // Black is 0, white is 255
@@ -144,7 +139,7 @@ class RepeatAccumulateEncoder
       std::shuffle(order_, order_ + B * Q, gen);
     }
 
-    // Decoder will need to use the same order
+    // Decoder will need to know the order
     const int (&order() const)[B * Q] { return order_; }
 
     // Sends original information bits at the end
@@ -239,12 +234,12 @@ class RepeatAccumulateDecoder
                   beta_prod *= tanh(0.5 * beta[focus][tmp]);
                 }
               }
-              if (beta_prod > 0.9999999999999999) {
-                beta_prod = 0.9999999999999999;
-              } else if (beta_prod < -0.9999999999999999) {
-                beta_prod = -0.9999999999999999;
+              if (beta_prod > 1 - 1e-15) {
+                beta_prod = 1 - 1e-15;
+              } else if (beta_prod < -1 + 1e-15) {
+                beta_prod = -1 + 1e-15;
               }
-              alpha[i][n] = 2.0 * atanh(beta_prod);
+              alpha[i][n] = 2 * atanh(beta_prod);
             }
           }
         }
@@ -302,7 +297,7 @@ class RepeatAccumulateDecoder
 };
 
 // Simple repeat encoder (sends original Q + 1 times)
-std::bitset<B * (Q + 1)> repeat_encoder(const std::bitset<B> input)
+std::bitset<B * (Q + 1)> repeat_encode(const std::bitset<B> input)
 {
   std::bitset<B * (Q + 1)> output;
   for (int i = 0; i < B; i++) {
@@ -313,7 +308,7 @@ std::bitset<B * (Q + 1)> repeat_encoder(const std::bitset<B> input)
   return output;
 }
 
-std::bitset<B> simple_average_decoder(const double received_repeat[B * (Q + 1)])
+std::bitset<B> simple_average_decode(const double received_repeat[B * (Q + 1)])
 {
   std::bitset<B> corrected_repeat;
   for (int i = 0; i < B; i++) {
@@ -338,7 +333,7 @@ int main(void)
   printf("Coding rate = %lf, SNR = %g dB\n", rate, ebn0);
     
   auto original = get_original_bits();
-  write_pbm("original.pbm", original);
+  write_pbm("images/original.pbm", original);
 
   // Additive white gaussian noise
   double noise[B * (Q + 1)];
@@ -348,7 +343,7 @@ int main(void)
     noise[i] = dist(gen);
   }
 
-  auto repeat_code = repeat_encoder(original);
+  auto repeat_code = repeat_encode(original);
 
   RepeatAccumulateEncoder ra_encoder;
   auto ra_code = ra_encoder.encode(original);
@@ -359,16 +354,16 @@ int main(void)
   for (int i = 0; i < B * (Q + 1); i++) {
     received_repeat[i] = 2. * repeat_code[i] - 1 + noise[i];
   }
-  write_pgm("received_repeat.pgm", received_repeat);
+  write_pgm("images/received_repeat.pgm", received_repeat);
 
   double received_ra[B * (Q + 1)];
   for (int i = 0; i < B * (Q + 1); i++) {
 	  received_ra[i] = 2. * ra_code[i] - 1 + noise[i];
   }
-  write_pgm("received_ra.pgm", received_ra);
+  write_pgm("images/received_ra.pgm", received_ra);
 
-  auto corrected_repeat = simple_average_decoder(received_repeat);
-  write_pbm("corrected_repeat.pbm", corrected_repeat);
+  auto corrected_repeat = simple_average_decode(received_repeat);
+  write_pbm("images/corrected_repeat.pbm", corrected_repeat);
 
   double llr[B * (Q + 1)];
   for (int i = 0; i < B * (Q + 1); i++) {
@@ -378,12 +373,12 @@ int main(void)
   RepeatAccumulateDecoder ra_decoder(ra_encoder.order());
       
   // Try different number of iterations to illustrate progress
-  auto corrected_ra = ra_decoder.decode(llr, 1); write_pbm("corrected_ra_01.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 5); write_pbm("corrected_ra_05.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 10); write_pbm("corrected_ra_10.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 15); write_pbm("corrected_ra_15.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 20); write_pbm("corrected_ra_20.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 25); write_pbm("corrected_ra_25.pbm", corrected_ra);
+  auto corrected_ra = ra_decoder.decode(llr, 1); write_pbm("images/corrected_ra_01.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr, 5); write_pbm("images/corrected_ra_05.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr, 10); write_pbm("images/corrected_ra_10.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr, 15); write_pbm("images/corrected_ra_15.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr, 20); write_pbm("images/corrected_ra_20.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr, 25); write_pbm("images/corrected_ra_25.pbm", corrected_ra);
 
   // Count errors
   int error_count_repeat = 0, error_count_ra = 0;
