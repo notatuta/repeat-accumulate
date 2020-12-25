@@ -145,10 +145,10 @@ class RepeatAccumulateEncoder
     }
 
     // Decoder will need to use the same order
-    const int (&order())[B * Q] { return order_; }
+    const int (&order() const)[B * Q] { return order_; }
 
     // Sends original information bits at the end
-    std::bitset<B * (Q + 1)> encode(const std::bitset<B> input)
+    std::bitset<B * (Q + 1)> encode(const std::bitset<B> input) const
     {
       // Repeat every input bit Q times
       std::bitset<Q * B> repeated;
@@ -188,49 +188,41 @@ class RepeatAccumulateDecoder
   public:
     RepeatAccumulateDecoder(const int (&order)[B * Q])
     {
-      // Degrees of variable nodes
-      for (int i = 0; i < B * Q - 1; i++) {
-        vd_[i] = 2;
-      }
-      vd_[B * Q - 1] = 1; 
-      for (int i = B * Q; i < B * (Q + 1); i++) {
-        vd_[i] = Q;
-      }
-
-      // Degrees of check nodes
-      cd_[0] = 2;
-      for (int i = 1; i < B * Q; i++) {
-        cd_[i] = 3;
-      }
-
-      // Variable nodes
+      int reverse_order[B * Q];
       for (int i = 0; i < B * Q; i++) {
-        for (int k = 0; k < vd_[i]; k++) {
-          vn_[i][k] = i + k;
-        }
-        vn_[order[i] / Q + B * Q][order[i] % Q] = i;
+        reverse_order[order[i]] = i;
       }
-
-      // Check nodes
-      for (int i = 0; i < B * Q; i++) {
-        for (int k = 0; k < cd_[i]; k++) {
-          int j = (k == cd_[i] - 1) ? (order[i] / Q) + B * Q : i - k;
-          cn_[i][k] = j;
-          for (int m = 0; m < vd_[j]; m++) {
-            if (vn_[j][m] == i) {
-              vn_back_[j][m] = k;
-              cn_back_[i][k] = m;
-              goto found;
-            }
+      for (int j = 0, o = 0; j < B * (Q + 1); j++) {
+        for (int m = 0; m < variable_node_degree(j); m++) {
+          int i = j + m;
+          int k = i - j; 
+          if (j >= B * Q) {
+            i = reverse_order[o++];
+            k = check_node_degree(i) - 1; 
           }
-          perror("Can't tie back connection\n");
-          exit(-1);
-found:    ;
+          vn_[j][m] = i;
+          cn_[i][k] = j;
+          vn_back_[j][m] = k;
+          cn_back_[i][k] = m;
         }
       }
     }
 
-    std::bitset<B> decode(const double llr[B * (Q + 1)], int itemax = 100)
+    int variable_node_degree(int node) const {
+      if (node < B * Q - 1) {
+        return 2;
+      } else if (node == B * Q - 1) {
+        return 1;
+      } else {
+        return Q;
+      }
+    }
+
+    int check_node_degree(int node) const {
+      return node ? 3 : 2;
+    }
+
+    std::bitset<B> decode(const double llr[B * (Q + 1)], int itemax = 100) const
     {
       double beta[B * Q + B][Q] = {};
       double alpha[B * Q][3] = {};
@@ -238,9 +230,9 @@ found:    ;
       for (int iteration = 0; iteration < itemax; iteration++) {
         if (iteration > 0) {
           for (int i = 0; i < B * Q; i++) {
-            for (int n = 0; n < cd_[i]; n++) { // will update alpha for this node
+            for (int n = 0; n < check_node_degree(i); n++) { // will update alpha for this node
               double beta_prod = 1.0;
-              for (int k = 0; k < cd_[i]; k++) { // loop over nodes connected to this one
+              for (int k = 0; k < check_node_degree(i); k++) { // loop over nodes connected to this one
                 if (k != n) { // not count connections to itself
                   int focus = cn_[i][k];
                   int tmp = cn_back_[i][k];
@@ -261,7 +253,7 @@ found:    ;
           double alpha_sum = 0.0;
           double alpha_tmp[Q];
     
-          for (int k = 0; k < vd_[i]; k++) { 
+          for (int k = 0; k < variable_node_degree(i); k++) { 
             int focus = vn_[i][k];
             int tmp = vn_back_[i][k];
             alpha_sum += alpha[focus][tmp];
@@ -275,7 +267,7 @@ found:    ;
             tmp_ans[i] = 1;
           }
   
-          for (int k = 0; k < vd_[i]; k++){
+          for (int k = 0; k < variable_node_degree(i); k++){
             beta[i][k] = alpha_sum - alpha_tmp[k];  
           }
         }
@@ -284,7 +276,7 @@ found:    ;
           bool parity_check_ok = true;
           for (int i = 0; i < B * Q; i++) {
             int check_bit = 0;
-            for (int j = 0; j < cd_[i]; j++) {
+            for (int j = 0; j < check_node_degree(i); j++) {
               check_bit = check_bit ^ tmp_ans[cn_[i][j]];
             }
             if (check_bit != 0) {
@@ -307,7 +299,6 @@ found:    ;
   private:
     int vn_[B * (Q + 1)][Q], vn_back_[B * (Q + 1)][Q];
     int cn_[B * Q][3], cn_back_[B * Q][3];
-    int vd_[B * (Q + 1)], cd_[B * Q];
 };
 
 // Simple repeat encoder (sends original Q + 1 times)
