@@ -30,6 +30,6 @@ Here it is used as a systematic code with *Q=3*, so first 64x64x3 bits go throug
 
 Decoding algorithm is iterative. Below are the intermediate results.
 
-![RA decoder output after 1 iteration](images/corrected_ra_01.png) ![RA decoder output after 5 iterations](images/corrected_ra_05.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 15 iterations](corrected_ra_15.png) ![RA decoder output after 20 iterations](images/corrected_ra_20.png) ![RA decoder output after 25 iterations](images/corrected_ra_25.png)
+![RA decoder output after 1 iteration](images/corrected_ra_01.png) ![RA decoder output after 5 iterations](images/corrected_ra_05.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 15 iterations](images/corrected_ra_15.png) ![RA decoder output after 20 iterations](images/corrected_ra_20.png) ![RA decoder output after 25 iterations](images/corrected_ra_25.png)
 
 Decoding algorithm is borrowed from LDPC codes. It's using passing messages back and forth on Tanner graph, in a way similar to Viterbi algorithm.
