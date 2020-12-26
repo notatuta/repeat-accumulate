@@ -196,8 +196,8 @@ class RepeatAccumulateDecoder
             k = check_node_degree(i) - 1; 
           }
           vn_[j][m] = i;
-          cn_[i][k] = j;
           vn_back_[j][m] = k;
+          cn_[i][k] = j;
           cn_back_[i][k] = m;
         }
       }
@@ -221,17 +221,19 @@ class RepeatAccumulateDecoder
     {
       double beta[B * Q + B][Q] = {};
       double alpha[B * Q][3] = {};
-      int tmp_ans[B * (Q + 1)];
+      int ans[B * (Q + 1)];
       for (int iteration = 0; iteration < itemax; iteration++) {
+
+        // Update alphas
         if (iteration > 0) {
           for (int i = 0; i < B * Q; i++) {
             for (int n = 0; n < check_node_degree(i); n++) { // will update alpha for this node
               double beta_prod = 1.0;
               for (int k = 0; k < check_node_degree(i); k++) { // loop over nodes connected to this one
                 if (k != n) { // not count connections to itself
-                  int focus = cn_[i][k];
-                  int tmp = cn_back_[i][k];
-                  beta_prod *= tanh(0.5 * beta[focus][tmp]);
+                  int j = cn_[i][k];
+                  int m = cn_back_[i][k];
+                  beta_prod *= tanh(0.5 * beta[j][m]);
                 }
               }
               if (beta_prod > 1 - 1e-15) {
@@ -244,35 +246,30 @@ class RepeatAccumulateDecoder
           }
         }
     
-        for (int i = 0; i < B * (Q + 1); i++) {
+        // Update betas
+        for (int j = 0; j < B * (Q + 1); j++) {
           double alpha_sum = 0.0;
           double alpha_tmp[Q];
-    
-          for (int k = 0; k < variable_node_degree(i); k++) { 
-            int focus = vn_[i][k];
-            int tmp = vn_back_[i][k];
-            alpha_sum += alpha[focus][tmp];
-            alpha_tmp[k] = alpha[focus][tmp];
+          for (int m = 0; m < variable_node_degree(j); m++) { 
+            int i = vn_[j][m];
+            int k = vn_back_[j][m];
+            alpha_sum += alpha[i][k];
+            alpha_tmp[m] = alpha[i][k];
           }
-
-          alpha_sum = llr[i] + alpha_sum;
-          if (alpha_sum > 0.0) { 
-            tmp_ans[i] = 0;
-          } else{ 
-            tmp_ans[i] = 1;
-          }
-  
-          for (int k = 0; k < variable_node_degree(i); k++){
-            beta[i][k] = alpha_sum - alpha_tmp[k];  
+          alpha_sum = llr[j] + alpha_sum;
+          ans[j] = (alpha_sum > 0.0) ? 0 : 1;
+          for (int k = 0; k < variable_node_degree(j); k++){
+            beta[j][k] = alpha_sum - alpha_tmp[k];  
           }
         }
 
+        // Check parity
         if (iteration > 0) {
           bool parity_check_ok = true;
           for (int i = 0; i < B * Q; i++) {
             int check_bit = 0;
-            for (int j = 0; j < check_node_degree(i); j++) {
-              check_bit = check_bit ^ tmp_ans[cn_[i][j]];
+            for (int k = 0; k < check_node_degree(i); k++) {
+              check_bit = check_bit ^ ans[cn_[i][k]];
             }
             if (check_bit != 0) {
               parity_check_ok = false; 
@@ -284,11 +281,11 @@ class RepeatAccumulateDecoder
           }
         }
       }
-      std::bitset<B> ans;
+      std::bitset<B> output;
       for (int i = 0; i < B; i++) {
-        ans[i] = tmp_ans[B * Q + i];
+        output[i] = ans[B * Q + i];
       }
-      return ans;
+      return output;
     }
 
   private:

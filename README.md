@@ -16,7 +16,7 @@ On the receiving end, average received copies to recover the original:
 
 ![Corrected by averaging four transmissions](images/corrected_repeat.png)
 
-There are still 148 bits that flipped. Not great. Enter the **Repeat-Accumulate algorithm**:
+There are still more than a hundred bits that flipped. Not great. Enter the **Repeat-Accumulate algorithm**:
 
 * Repeat each input bit *Q* times
 
