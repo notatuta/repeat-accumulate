@@ -184,22 +184,45 @@ class RepeatAccumulateDecoder
     RepeatAccumulateDecoder(const int (&order)[B * Q])
     {
       int reverse_order[B * Q];
-      for (int i = 0; i < B * Q; i++) {
-        reverse_order[order[i]] = i;
+      for (int o = 0; o < B * Q; o++) {
+        reverse_order[order[o]] = o;
       }
-      for (int j = 0, o = 0; j < B * (Q + 1); j++) {
-        for (int m = 0; m < variable_node_degree(j); m++) {
-          int i = j + m;
-          int k = i - j; 
-          if (j >= B * Q) {
-            i = reverse_order[o++];
-            k = check_node_degree(i) - 1; 
-          }
-          vn_[j][m] = i;
-          vn_back_[j][m] = k;
-          cn_[i][k] = j;
-          cn_back_[i][k] = m;
+      int data_bit_index[B * Q];
+      int repeat_number[B * Q];
+      for (int data_bit = 0, o = 0; data_bit < B; data_bit++) {
+        for (int repeat = 0; repeat < Q; repeat++) {
+          data_bit_index[reverse_order[o]] = data_bit;
+          repeat_number[reverse_order[o]] = repeat;
+          o++;
         }
+      }
+      for (int i = 0; i < B * Q; i++) {
+        int systemic_bit = data_bit_index[i] + B * Q;
+        if (i == 0) {
+          cn_[0][0] = 0;
+          cn_[0][1] = systemic_bit;
+          cn_input_[0][0] = 0;
+          cn_input_[systemic_bit][0] = 1;
+          vn_input_[0][0] = 0;
+          vn_input_[0][1] = repeat_number[i];
+        } else {
+          cn_[i][0] = i - 1; 
+          cn_[i][1] = i;
+          cn_[i][2] = systemic_bit;          
+          cn_input_[i][0] = 1;
+          vn_input_[i][0] = 1;
+          vn_input_[i][1] = 0;
+          vn_input_[i][2] = repeat_number[i];
+        }
+        if (i != B * Q - 1) {
+          cn_input_[i][1] = 0;
+        }
+        vn_[i][0] = i;
+        if (i != B * Q - 1) { // last bit variable node only has one input
+          vn_[i][1] = i + 1;
+        }
+        vn_[systemic_bit][repeat_number[i]] = i;
+        cn_input_[systemic_bit][repeat_number[i]] = i ? 2 : 1;
       }
     }
 
@@ -219,20 +242,53 @@ class RepeatAccumulateDecoder
 
     std::bitset<B> decode(const double llr[B * (Q + 1)], int itemax = 100) const
     {
-      double beta[B * Q + B][Q] = {};
+      double beta[B * Q + B][Q] = {}; // Message from check nodes to bit nodes, initially all zeroes
       double alpha[B * Q][3] = {};
       int ans[B * (Q + 1)];
       for (int iteration = 0; iteration < itemax; iteration++) {
 
-        // Update alphas
+        // Send messages from check nodes to bit nodes
+        for (int j = 0; j < B * (Q + 1); j++) {
+          double alpha_sum = 0.0;
+          double alpha_tmp[Q];
+          for (int m = 0; m < variable_node_degree(j); m++) { 
+            int i = vn_[j][m];
+            int k = cn_input_[j][m];
+            alpha_sum += alpha[i][k];
+            alpha_tmp[m] = alpha[i][k];
+          }
+          alpha_sum = llr[j] + alpha_sum;
+          ans[j] = (alpha_sum > 0.0) ? 0 : 1;
+          for (int m = 0; m < variable_node_degree(j); m++){
+            beta[j][m] = alpha_sum - alpha_tmp[m];  
+          }
+        }
+
+        // Stop iterating if all parity checks pass 
+        bool all_parity_checks_ok = true;
+        for (int i = 0; i < B * Q; i++) {
+          int check_bit = 0;
+          for (int k = 0; k < check_node_degree(i); k++) {
+            check_bit = check_bit ^ ans[cn_[i][k]];
+          }
+          if (check_bit != 0) {
+            all_parity_checks_ok = false; 
+            break;
+          }
+        }
+        if (all_parity_checks_ok) {
+          break;
+        }
+
+        // Send messages from bit nodes to check nodes
         if (iteration > 0) {
           for (int i = 0; i < B * Q; i++) {
-            for (int n = 0; n < check_node_degree(i); n++) { // will update alpha for this node
+            for (int n = 0; n < check_node_degree(i); n++) { // will update alpha for this check node
               double beta_prod = 1.0;
-              for (int k = 0; k < check_node_degree(i); k++) { // loop over nodes connected to this one
-                if (k != n) { // not count connections to itself
+              for (int k = 0; k < check_node_degree(i); k++) { // loop over variable nodes connected to this one
+                if (k != n) { // except itself
                   int j = cn_[i][k];
-                  int m = cn_back_[i][k];
+                  int m = vn_input_[i][k];
                   beta_prod *= tanh(0.5 * beta[j][m]);
                 }
               }
@@ -246,40 +302,6 @@ class RepeatAccumulateDecoder
           }
         }
     
-        // Update betas
-        for (int j = 0; j < B * (Q + 1); j++) {
-          double alpha_sum = 0.0;
-          double alpha_tmp[Q];
-          for (int m = 0; m < variable_node_degree(j); m++) { 
-            int i = vn_[j][m];
-            int k = vn_back_[j][m];
-            alpha_sum += alpha[i][k];
-            alpha_tmp[m] = alpha[i][k];
-          }
-          alpha_sum = llr[j] + alpha_sum;
-          ans[j] = (alpha_sum > 0.0) ? 0 : 1;
-          for (int k = 0; k < variable_node_degree(j); k++){
-            beta[j][k] = alpha_sum - alpha_tmp[k];  
-          }
-        }
-
-        // Check parity
-        if (iteration > 0) {
-          bool parity_check_ok = true;
-          for (int i = 0; i < B * Q; i++) {
-            int check_bit = 0;
-            for (int k = 0; k < check_node_degree(i); k++) {
-              check_bit = check_bit ^ ans[cn_[i][k]];
-            }
-            if (check_bit != 0) {
-              parity_check_ok = false; 
-              break;
-            }
-          }
-          if (parity_check_ok) {
-            break;
-          }
-        }
       }
       std::bitset<B> output;
       for (int i = 0; i < B; i++) {
@@ -289,8 +311,10 @@ class RepeatAccumulateDecoder
     }
 
   private:
-    int vn_[B * (Q + 1)][Q], vn_back_[B * (Q + 1)][Q];
-    int cn_[B * Q][3], cn_back_[B * Q][3];
+    int vn_[B * (Q + 1)][Q]; // Which check node this variable node is connected to
+    int cn_input_[B * (Q + 1)][Q]; // Which input of the check node this connection goes to
+    int cn_[B * Q][3]; // Which variable node this check node is connected to
+    int vn_input_[B * Q][3]; // Which input of the variable node this connection goes to
 };
 
 // Simple repeat encoder (sends original Q + 1 times)
