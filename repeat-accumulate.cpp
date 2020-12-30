@@ -112,7 +112,7 @@ void write_pgm(const char* filename, const double pieces[64 * 64 * (Q + 1)])
     fprintf(f, "P2\n%d 64\n255\n", 64 * (Q + 1));
     for (int row = 0; row < 64; row++) {
       for (int col = 0; col < 64 * (Q + 1); col++) {
-        double intensity = (2. - pieces[col * 64 + row]) * 256 / 4;
+        double intensity = (2. - pieces[col * 64 + row] / 2) * 256 / 4;
         if (intensity < 0) intensity = 0;
         if (intensity > 255) intensity = 255;
         fprintf(f, "%d ", (int)intensity); // Black is 0, white is 255
@@ -130,41 +130,36 @@ class RepeatAccumulateEncoder
   public:
     RepeatAccumulateEncoder()
     {
-      std::default_random_engine gen(123);
-      // Start with ordered sequence, then shuffle it
-      for (int i = 0; i < B * Q; i++) {
-        order_[i] = i;
-      }
-      int start = 0;
-      for (int attempt = 0; attempt < 1000; attempt++) {
-
-        // (re)shuffle the remaining portion
-        std::shuffle(order_ + start, order_ + B * Q, gen);
+      unsigned seed = 1284167877; // Known good value to save time
+      for (int attempt = 0; attempt < 10000000; attempt++) {
+  
+        // Start with ordered sequence, then shuffle it
+        for (int i = 0; i < B * Q; i++) {
+          order_[i] = i;
+        }
+        std::mt19937_64 gen;
+        gen.seed(seed);
+        std::shuffle(order_, order_ + B * Q, gen);
 
         // Check if interleaver is S-random (no input symbols within distance S 
         // appear within a distance of S in the output) with S == Q
         bool is_s_random = true;
-        for (int i = start; i < B * Q - 1 && is_s_random; i++) {
+        for (int i = 0; i < B * Q - 1 && is_s_random; i++) {
           for (int j = i + 1; j < i + Q && j < B * Q; j++) {
             int distance = order_[i] - order_[j];
             if (distance < Q && distance > -Q) {
               is_s_random = false;
-              double percent_remaining = (B * Q - i) * 100. / (B * Q);
-              printf("Interleaver is not S-random, order_[%d]=%d and order_[%d]=%d, %.2f%% remaining\n", i, order_[i], j, order_[j], percent_remaining);
-              if (percent_remaining < 1) {
-                printf("Tail is too short, re-shuffling from the beginning\n");
-                start = 0;
-              } else {
-                start = i;
-              }
               break;
             }
           }
         }
         if (is_s_random) {
-          printf("Interleaver is S-random\n");
+          // printf("Interleaver is S-random, seed=%u, attempt=%d\n", seed, attempt);
           return;
         }
+
+        // Try different seed
+        seed = std::random_device{}();
       }
       printf("Giving up, will use suboptimal interleaver\n");
     }
@@ -382,7 +377,7 @@ int main(void)
   const double rate = 1. / (Q + 1);
   const double ebn0 = 1.; // Signal to noise ratio in dB
   const double variance = 1.0 / (rate * pow(10.0, ebn0 / 10.0)) * 0.5;
-  printf("Coding rate = %lf, SNR = %g dB\n", rate, ebn0);
+  printf("Coding rate = %g, SNR = %g dB\n", rate, ebn0);
     
   auto original = get_original_bits();
   write_pbm("images/original.pbm", original);
@@ -426,11 +421,10 @@ int main(void)
       
   // Try different number of iterations to illustrate progress
   auto corrected_ra = ra_decoder.decode(llr, 1); write_pbm("images/corrected_ra_01.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 5); write_pbm("images/corrected_ra_05.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 10); write_pbm("images/corrected_ra_10.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 15); write_pbm("images/corrected_ra_15.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 20); write_pbm("images/corrected_ra_20.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 25); write_pbm("images/corrected_ra_25.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr, 30); write_pbm("images/corrected_ra_30.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr, 40); write_pbm("images/corrected_ra_40.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr); write_pbm("images/corrected_ra.pbm", corrected_ra);
 
   // Count errors

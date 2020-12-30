@@ -2,9 +2,9 @@
 
 Repeat-Accumulate error correction code is a flavor of [LDPC](https://en.wikipedia.org/wiki/Low-density_parity-check_code) with very simple encoder. Despite simplicity, it still approaches the theoretical [Shannon limit](https://en.wikipedia.org/wiki/Noisy-channel_coding_theorem).
 
-In this toy example we will be transmitting the following 64x64 black and white image, column by column, from left to right:
+In this toy example we will be transmitting the following 64x64 black and white image (scaled up 2x for clarity), column by column, from left to right:
 
-![Original 64x64 bitmap](images/original.png)
+![Original 64x64 bitmap, scaled up 2x for clarity](images/original.png)
 
 Most real data will have less redundancy, but here redundancy is good because it will help see the errors.
 
@@ -16,7 +16,7 @@ On the receiving end, average received copies to recover the original:
 
 ![Corrected by averaging four transmissions](images/corrected_repeat.png)
 
-There are still more than a hundred bits that flipped. Not great. Enter the **Repeat-Accumulate algorithm**:
+There are still over two hundred bits that flipped. Not great. Enter the **Repeat-Accumulate algorithm**:
 
 * Repeat each input bit *Q* times
 
@@ -28,8 +28,12 @@ Here it is used as a systematic code with *Q=3*, so first 64x64x3 bits go throug
 
 ![Systematic repeat-accumulate code, with noise added](images/received_ra.png)
 
-Decoding algorithm is iterative. Intermediate results after 1, 5, 10, 15, 20, 25 iterations and final decoded image:
+Decoding algorithm is iterative. Intermediate results after 1, 10, 20, 30, 40 iterations, and final decoded image:
 
-![RA decoder output after 1 iteration](images/corrected_ra_01.png) ![RA decoder output after 5 iterations](images/corrected_ra_05.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 15 iterations](images/corrected_ra_15.png) ![RA decoder output after 20 iterations](images/corrected_ra_20.png) ![RA decoder output after 25 iterations](images/corrected_ra_25.png) ![RA decoder output after 61 iterations](images/corrected_ra.png)
+![RA decoder output after 1 iteration](images/corrected_ra_01.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 20 iterations](images/corrected_ra_20.png) ![RA decoder output after 30 iterations](images/corrected_ra_30.png) ![RA decoder output after 40 iterations](images/corrected_ra_40.png) ![RA decoder output after 61 iterations](images/corrected_ra.png)
 
 Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](https://en.wikipedia.org/wiki/Belief_propagation) back and forth on [Tanner graph](https://en.wikipedia.org/wiki/Tanner_graph), in a way similar to [Viterbi algorithm](https://en.wikipedia.org/wiki/Viterbi_algorithm).
+
+Random interleaver has nice theoretical properties, *on average* and *in the limit*, but intuitively it's clear that not all random interleavers are equally good. For example, interleaver that does nothing is theoretically possible, albeit unlikely, and cannot be expected to work well because one would want the interleaver to avoid placing copies of the same bit close together.
+
+One way to enforce this requirement is to use $S$-random interleaver, where no input symbols within distance $S$ appear within a distance of $S$ in the output, with $S = Q$. Instead of trying to construct such interleaver, the code in this example just checks if randomly created interleaver is $S$-random, and keeps retrying with different seed if it is not. To save time, it starts with a known good seed that was found earlier.
