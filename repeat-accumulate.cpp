@@ -267,9 +267,9 @@ class RepeatAccumulateDecoder
 
     std::bitset<B> decode(const double llr[B * (Q + 1)], int itemax = 100) const
     {
-      double beta[B * Q + B][Q] = {}; // Message from check nodes to bit nodes, initially all zeroes
-      double alpha[B * Q][3] = {};
-      int ans[B * (Q + 1)];
+      double beta[B * Q + B][Q] = {}; // Messages from check nodes to bit nodes, initially all zeroes
+      double alpha[B * Q][3] = {}; // Messages from bit nodes to check nodes, initially all zeroes
+      int ans[B * (Q + 1)]; // Log likelihoods of transmitted bits
       for (int iteration = 0; iteration < itemax; iteration++) {
 
         // Send messages from check nodes to bit nodes
@@ -412,6 +412,8 @@ int main(void)
   auto corrected_repeat = simple_average_decode(received_repeat);
   write_pbm("images/corrected_repeat.pbm", corrected_repeat);
 
+  // Log likelihood ratio for received bits 
+  // Divide PDFs of normal distribution with means +1 and -1 and given variance, then take the log
   double llr[B * (Q + 1)];
   for (int i = 0; i < B * (Q + 1); i++) {
 	  llr[i] = -2.0 * received_ra[i] / variance;
@@ -420,23 +422,17 @@ int main(void)
   RepeatAccumulateDecoder ra_decoder(ra_encoder.order());
       
   // Try different number of iterations to illustrate progress
-  auto corrected_ra = ra_decoder.decode(llr, 1); write_pbm("images/corrected_ra_01.pbm", corrected_ra);
+  auto 
+  corrected_ra = ra_decoder.decode(llr, 1);  write_pbm("images/corrected_ra_01.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 10); write_pbm("images/corrected_ra_10.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 20); write_pbm("images/corrected_ra_20.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 30); write_pbm("images/corrected_ra_30.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 40); write_pbm("images/corrected_ra_40.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr); write_pbm("images/corrected_ra.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr);     write_pbm("images/corrected_ra.pbm",    corrected_ra);
 
   // Count errors
-  int error_count_repeat = 0, error_count_ra = 0;
-  for (int i = 0; i < B; i++) {
-	  if (original[i] != corrected_repeat[i]) {
-      error_count_repeat++;
-    }
-    if (original[i] != corrected_ra[i]) {
-      error_count_ra++;
-    }
-  }
+  int error_count_repeat = (original ^ corrected_repeat).count();
+  int error_count_ra = (original ^ corrected_ra).count();
   printf("%d simple repeat errors, %d RA errors\n", error_count_repeat, error_count_ra);
   return 0;
 }
