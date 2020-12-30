@@ -109,9 +109,9 @@ void write_pgm(const char* filename, const double pieces[64 * 64 * (Q + 1)])
 {
   FILE* f = fopen(filename, "w");
   if (f) {
-    fprintf(f, "P2\n256 64\n255\n");
+    fprintf(f, "P2\n%d 64\n255\n", 64 * (Q + 1));
     for (int row = 0; row < 64; row++) {
-      for (int col = 0; col < 256; col++) {
+      for (int col = 0; col < 64 * (Q + 1); col++) {
         double intensity = (2. - pieces[col * 64 + row]) * 256 / 4;
         if (intensity < 0) intensity = 0;
         if (intensity > 255) intensity = 255;
@@ -197,18 +197,18 @@ class RepeatAccumulateDecoder
         }
       }
       for (int i = 0; i < B * Q; i++) {
-        int systemic_bit = data_bit_index[i] + B * Q;
+        int source_bit = data_bit_index[i] + B * Q;
         if (i == 0) {
           cn_[0][0] = 0;
-          cn_[0][1] = systemic_bit;
+          cn_[0][1] = source_bit;
           cn_input_[0][0] = 0;
-          cn_input_[systemic_bit][0] = 1;
+          cn_input_[source_bit][0] = 1;
           vn_input_[0][0] = 0;
           vn_input_[0][1] = repeat_number[i];
         } else {
           cn_[i][0] = i - 1; 
           cn_[i][1] = i;
-          cn_[i][2] = systemic_bit;          
+          cn_[i][2] = source_bit;          
           cn_input_[i][0] = 1;
           vn_input_[i][0] = 1;
           vn_input_[i][1] = 0;
@@ -218,11 +218,11 @@ class RepeatAccumulateDecoder
           cn_input_[i][1] = 0;
         }
         vn_[i][0] = i;
-        if (i != B * Q - 1) { // last bit variable node only has one input
+        if (i != B * Q - 1) { // last bit variable node has only one input
           vn_[i][1] = i + 1;
         }
-        vn_[systemic_bit][repeat_number[i]] = i;
-        cn_input_[systemic_bit][repeat_number[i]] = i ? 2 : 1;
+        vn_[source_bit][repeat_number[i]] = i;
+        cn_input_[source_bit][repeat_number[i]] = i ? 2 : 1;
       }
     }
 
