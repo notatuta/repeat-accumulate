@@ -7,6 +7,7 @@ images/original.png: images/original.pbm
 	magick convert images/corrected_ra_15.pbm images/corrected_ra_15.png
 	magick convert images/corrected_ra_20.pbm images/corrected_ra_20.png
 	magick convert images/corrected_ra_25.pbm images/corrected_ra_25.png
+	magick convert images/corrected_ra.pbm images/corrected_ra.png
 	magick convert images/corrected_repeat.pbm images/corrected_repeat.png
 	magick convert images/received_ra.pgm images/received_ra.png
 	magick convert images/received_repeat.pgm images/received_repeat.png

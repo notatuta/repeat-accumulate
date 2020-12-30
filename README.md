@@ -8,7 +8,7 @@ In this toy example we will be transmitting the following 64x64 black and white 
 
 Most real data will have less redundancy, but here redundancy is good because it will help see the errors.
 
-As a baseline, try simplest possible error correction first: send the same data four times. To simulate channel noise, pull random numbers from normal distribution and add to the transmitted signal. In this example signal to noise ratio is kept at pretty sporty 2 dB.
+As a baseline, try simplest possible error correction first: send the same data four times. To simulate channel noise, pull random numbers from normal distribution and add to the transmitted signal. In this example signal to noise ratio is kept at pretty sporty 1 dB.
 
 ![Repeated four times, with noise added](images/received_repeat.png)
 
@@ -28,8 +28,8 @@ Here it is used as a systematic code with *Q=3*, so first 64x64x3 bits go throug
 
 ![Systematic repeat-accumulate code, with noise added](images/received_ra.png)
 
-Decoding algorithm is iterative. Intermediate results after 1, 5, 10, 15, 20, and 25 iterations:
+Decoding algorithm is iterative. Intermediate results after 1, 5, 10, 15, 20, 25 iterations and final decoded image:
 
-![RA decoder output after 1 iteration](images/corrected_ra_01.png) ![RA decoder output after 5 iterations](images/corrected_ra_05.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 15 iterations](images/corrected_ra_15.png) ![RA decoder output after 20 iterations](images/corrected_ra_20.png) ![RA decoder output after 25 iterations](images/corrected_ra_25.png)
+![RA decoder output after 1 iteration](images/corrected_ra_01.png) ![RA decoder output after 5 iterations](images/corrected_ra_05.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 15 iterations](images/corrected_ra_15.png) ![RA decoder output after 20 iterations](images/corrected_ra_20.png) ![RA decoder output after 25 iterations](images/corrected_ra_25.png) ![RA decoder output after 61 iterations](images/corrected_ra.png)
 
 Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](https://en.wikipedia.org/wiki/Belief_propagation) back and forth on [Tanner graph](https://en.wikipedia.org/wiki/Tanner_graph), in a way similar to [Viterbi algorithm](https://en.wikipedia.org/wiki/Viterbi_algorithm).

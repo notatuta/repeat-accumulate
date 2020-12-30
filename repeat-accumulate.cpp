@@ -130,13 +130,43 @@ class RepeatAccumulateEncoder
   public:
     RepeatAccumulateEncoder()
     {
-      // Start with ordered sequence,
+      std::default_random_engine gen(123);
+      // Start with ordered sequence, then shuffle it
       for (int i = 0; i < B * Q; i++) {
         order_[i] = i;
       }
-      // then shuffle it
-      std::default_random_engine gen(123);
-      std::shuffle(order_, order_ + B * Q, gen);
+      int start = 0;
+      for (int attempt = 0; attempt < 1000; attempt++) {
+
+        // (re)shuffle the remaining portion
+        std::shuffle(order_ + start, order_ + B * Q, gen);
+
+        // Check if interleaver is S-random (no input symbols within distance S 
+        // appear within a distance of S in the output) with S == Q
+        bool is_s_random = true;
+        for (int i = start; i < B * Q - 1 && is_s_random; i++) {
+          for (int j = i + 1; j < i + Q && j < B * Q; j++) {
+            int distance = order_[i] - order_[j];
+            if (distance < Q && distance > -Q) {
+              is_s_random = false;
+              double percent_remaining = (B * Q - i) * 100. / (B * Q);
+              printf("Interleaver is not S-random, order_[%d]=%d and order_[%d]=%d, %.2f%% remaining\n", i, order_[i], j, order_[j], percent_remaining);
+              if (percent_remaining < 1) {
+                printf("Tail is too short, re-shuffling from the beginning\n");
+                start = 0;
+              } else {
+                start = i;
+              }
+              break;
+            }
+          }
+        }
+        if (is_s_random) {
+          printf("Interleaver is S-random\n");
+          return;
+        }
+      }
+      printf("Giving up, will use suboptimal interleaver\n");
     }
 
     // Decoder will need to know the order
@@ -277,6 +307,7 @@ class RepeatAccumulateDecoder
           }
         }
         if (all_parity_checks_ok) {
+          printf("All parity checks passed at iteration %d\n", iteration);
           break;
         }
 
@@ -349,7 +380,7 @@ std::bitset<B> simple_average_decode(const double received_repeat[B * (Q + 1)])
 int main(void)
 {
   const double rate = 1. / (Q + 1);
-  const double ebn0 = 2.; // Signal to noise ratio in dB
+  const double ebn0 = 1.; // Signal to noise ratio in dB
   const double variance = 1.0 / (rate * pow(10.0, ebn0 / 10.0)) * 0.5;
   printf("Coding rate = %lf, SNR = %g dB\n", rate, ebn0);
     
@@ -400,6 +431,7 @@ int main(void)
   corrected_ra = ra_decoder.decode(llr, 15); write_pbm("images/corrected_ra_15.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 20); write_pbm("images/corrected_ra_20.pbm", corrected_ra);
   corrected_ra = ra_decoder.decode(llr, 25); write_pbm("images/corrected_ra_25.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr); write_pbm("images/corrected_ra.pbm", corrected_ra);
 
   // Count errors
   int error_count_repeat = 0, error_count_ra = 0;
