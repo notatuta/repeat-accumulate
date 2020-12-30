@@ -26,7 +26,9 @@ Enter the **Repeat-Accumulate algorithm**:
 
 * Transmit running total of the permuted bits, modulo 2. If bits are *b<sub>1</sub>*, *b<sub>2</sub>*, *b<sub>3</sub>*, etc. then send *b<sub>1</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, and so on.
 
-Here it is used as a systematic code with *Q=3*, so first 64x64x3 bits go through the above logic, and the last 64x64 bits contain a copy of the orginal. Here is the transmitted message after adding exactly the same noise as in the first example:
+In this example RA code is used as a systematic code with *Q=3*. First 64x64x3 bits go through the above logic. We'll call them *parity bits*. The last 64x64 bits contain a copy of the orginal. We'll call then *data bits*.
+
+Here is the transmitted message after adding exactly the same noise as in the first example:
 
 ![Systematic repeat-accumulate code, with noise added](images/received_ra.png)
 
@@ -35,6 +37,10 @@ Decoding algorithm is iterative. Intermediate results after 1, 10, 20, 30, 40 it
 ![RA decoder output after 1 iteration](images/corrected_ra_01.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 10 iterations](images/corrected_ra_10.png) ![RA decoder output after 20 iterations](images/corrected_ra_20.png) ![RA decoder output after 30 iterations](images/corrected_ra_30.png) ![RA decoder output after 40 iterations](images/corrected_ra_40.png) ![RA decoder output after 61 iterations](images/corrected_ra.png)
 
 Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](https://en.wikipedia.org/wiki/Belief_propagation) back and forth on [Tanner graph](https://en.wikipedia.org/wiki/Tanner_graph), in a way similar to [Viterbi algorithm](https://en.wikipedia.org/wiki/Viterbi_algorithm).
+
+To build Tanner graph, start by noting that it is possible to get original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with *b<sub>3</sub>* data bit, we should get a zero. This way we can construct a parity check node for each parity bit. All parity check nodes will have three inputs, except the first one that has two inputs (because first parity bit is transmitted as is).
+
+Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Once all parity checks are satisfied (or we reach maximum number of iterations, which usually means that some errors cannot be corrected), compare values held by variable nodes for data bits with zero to recover original bits.
 
 Random interleaver has nice theoretical properties, *on average* and *in the limit*, but intuitively it's clear that not all random interleavers are equally good. For example, interleaver that does nothing is theoretically possible, albeit unlikely, and cannot be expected to work well because one would want the interleaver to avoid placing copies of the same bit close together.
 
