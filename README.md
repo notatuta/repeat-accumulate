@@ -12,11 +12,13 @@ As a baseline, try simplest possible error correction first: send the same data 
 
 ![Repeated four times, with noise added](images/received_repeat.png)
 
-On the receiving end, average received copies to recover the original:
+On the receiving end, sum log likelihood ratios for each received bit to recover the original:
 
 ![Corrected by averaging four transmissions](images/corrected_repeat.png)
 
-There are still over two hundred bits that flipped. Not great. Enter the **Repeat-Accumulate algorithm**:
+There are still over two hundred bits that flipped. Simple averaging works about the same. Not great.
+
+Enter the **Repeat-Accumulate algorithm**:
 
 * Repeat each input bit *Q* times
 

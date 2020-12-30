@@ -355,7 +355,8 @@ std::bitset<B * (Q + 1)> repeat_encode(const std::bitset<B> input)
   return output;
 }
 
-std::bitset<B> simple_average_decode(const double received_repeat[B * (Q + 1)])
+// MLE repeat decoder: sum log likelihoods, compare with zero
+std::bitset<B> repeat_decode(const double received_repeat[B * (Q + 1)])
 {
   std::bitset<B> corrected_repeat;
   for (int i = 0; i < B; i++) {
@@ -364,9 +365,9 @@ std::bitset<B> simple_average_decode(const double received_repeat[B * (Q + 1)])
       sum += received_repeat[i + B * j];
     }
     if (sum > 0) {
-      corrected_repeat[i] = 1;
-    } else {
       corrected_repeat[i] = 0;
+    } else {
+      corrected_repeat[i] = 1;
     }
   }
   return corrected_repeat;
@@ -390,45 +391,44 @@ int main(void)
     noise[i] = dist(gen);
   }
 
+  // Encode the same original using both methods
   auto repeat_code = repeat_encode(original);
-
   RepeatAccumulateEncoder ra_encoder;
   auto ra_code = ra_encoder.encode(original);
 
   // Simulate transmission over noisy channel
   // Encode each 0 bit as -1, 1 bit as +1, add noise
   double received_repeat[B * (Q + 1)];
-  for (int i = 0; i < B * (Q + 1); i++) {
-    received_repeat[i] = 2. * repeat_code[i] - 1 + noise[i];
-  }
-  write_pgm("images/received_repeat.pgm", received_repeat);
-
   double received_ra[B * (Q + 1)];
   for (int i = 0; i < B * (Q + 1); i++) {
-	  received_ra[i] = 2. * ra_code[i] - 1 + noise[i];
+    received_repeat[i] = 2. * repeat_code[i] - 1 + noise[i];
+    received_ra[i] = 2. * ra_code[i] - 1 + noise[i];
   }
+  write_pgm("images/received_repeat.pgm", received_repeat);
   write_pgm("images/received_ra.pgm", received_ra);
-
-  auto corrected_repeat = simple_average_decode(received_repeat);
-  write_pbm("images/corrected_repeat.pbm", corrected_repeat);
 
   // Log likelihood ratio for received bits 
   // Divide PDFs of normal distribution with means +1 and -1 and given variance, then take the log
-  double llr[B * (Q + 1)];
+  double llr_repeat[B * (Q + 1)];
+  double llr_ra[B * (Q + 1)];
   for (int i = 0; i < B * (Q + 1); i++) {
-	  llr[i] = -2.0 * received_ra[i] / variance;
+    llr_repeat[i] = -2.0 * received_repeat[i] / variance;
+    llr_ra[i] = -2.0 * received_ra[i] / variance;
   }
 
-  RepeatAccumulateDecoder ra_decoder(ra_encoder.order());
-      
+  // Now decode what we received
+  auto corrected_repeat = repeat_decode(llr_repeat);
+  write_pbm("images/corrected_repeat.pbm", corrected_repeat);
+
   // Try different number of iterations to illustrate progress
+  RepeatAccumulateDecoder ra_decoder(ra_encoder.order());
   auto 
-  corrected_ra = ra_decoder.decode(llr, 1);  write_pbm("images/corrected_ra_01.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 10); write_pbm("images/corrected_ra_10.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 20); write_pbm("images/corrected_ra_20.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 30); write_pbm("images/corrected_ra_30.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr, 40); write_pbm("images/corrected_ra_40.pbm", corrected_ra);
-  corrected_ra = ra_decoder.decode(llr);     write_pbm("images/corrected_ra.pbm",    corrected_ra);
+  corrected_ra = ra_decoder.decode(llr_ra, 1);  write_pbm("images/corrected_ra_01.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr_ra, 10); write_pbm("images/corrected_ra_10.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr_ra, 20); write_pbm("images/corrected_ra_20.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr_ra, 30); write_pbm("images/corrected_ra_30.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr_ra, 40); write_pbm("images/corrected_ra_40.pbm", corrected_ra);
+  corrected_ra = ra_decoder.decode(llr_ra);     write_pbm("images/corrected_ra.pbm",    corrected_ra);
 
   // Count errors
   int error_count_repeat = (original ^ corrected_repeat).count();
