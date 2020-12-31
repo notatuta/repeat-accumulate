@@ -42,7 +42,7 @@ To build Tanner graph, start by noting that it is possible to get original (perm
 
 ![Tanner graph example](images/tanner_graph.png)
 
-In this simplified Tanner graph with three bits of data and $Q=2$, the squares at the top represent check nodes, and circles at the bottom represent variable nodes.
+In this simplified Tanner graph with three bits of data and *Q=2*, the squares at the top represent check nodes, and circles at the bottom represent variable nodes.
 
 Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Here variable nodes 0 through 5 are parity bits, and 6 through 8 are data bits.
 
