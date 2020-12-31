@@ -26,7 +26,7 @@ Enter the **Repeat-Accumulate algorithm**:
 
 * Transmit running total of the permuted bits, modulo 2. If bits are *b<sub>1</sub>*, *b<sub>2</sub>*, *b<sub>3</sub>*, etc. then send *b<sub>1</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, and so on.
 
-In this example RA code is used as a systematic code with *Q=3*. First 64x64x3 bits go through the above logic. We'll call them *parity bits*. The last 64x64 bits contain a copy of the orginal. We'll call then *data bits*.
+In this example RA code is used as a systematic code with *Q=3*. First 64x64x3 bits go through the above logic to create *parity bits*. The last 64x64 *data bits* contain a copy of the orginal.
 
 Here is the transmitted message after adding exactly the same noise as in the first example:
 
