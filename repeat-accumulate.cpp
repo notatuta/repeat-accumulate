@@ -221,33 +221,26 @@ class RepeatAccumulateDecoder
           o++;
         }
       }
-      for (int i = 0; i < B * Q; i++) {
-        int source_bit = data_bit_index[i] + B * Q;
-        if (i == 0) {
-          cn_[0][0] = 0;
-          cn_[0][1] = source_bit;
-          cn_input_[0][0] = 0;
-          cn_input_[source_bit][0] = 1;
-          vn_input_[0][0] = 0;
-          vn_input_[0][1] = repeat_number[i];
-        } else {
-          cn_[i][0] = i - 1; 
-          cn_[i][1] = i;
-          cn_[i][2] = source_bit;          
-          cn_input_[i][0] = 1;
-          vn_input_[i][0] = 1;
-          vn_input_[i][1] = 0;
-          vn_input_[i][2] = repeat_number[i];
+      // Parity bits
+      for (int j = 0; j < B * Q; j++) { // variable node
+        for (int m = 0; m < variable_node_degree(j); m++) { // variable node input
+          int i = j + m; // check node connected to this variable node
+          int k = j ? 1 - m : 0;// check node input
+          cn_[i][k] = j;
+          vn_input_[i][k] = m;
+          vn_[j][m] = i;
+          cn_input_[j][m] = k;
         }
-        if (i != B * Q - 1) {
-          cn_input_[i][1] = 0;
-        }
-        vn_[i][0] = i;
-        if (i != B * Q - 1) { // last bit variable node has only one input
-          vn_[i][1] = i + 1;
-        }
-        vn_[source_bit][repeat_number[i]] = i;
-        cn_input_[source_bit][repeat_number[i]] = i ? 2 : 1;
+      }
+      // Data bits
+      for (int i = 0; i < B * Q; i++) { // check node, and also parity bit
+        int k = i ? 2 : 1; // check node input
+        int j = data_bit_index[i] + B * Q; // variable node connected to this check node
+        int m = repeat_number[i]; // variable node input
+        cn_[i][k] = j;
+        vn_input_[i][k] = m;
+        vn_[j][m] = i;
+        cn_input_[j][m] = k;
       }
     }
 
