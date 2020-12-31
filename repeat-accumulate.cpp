@@ -208,19 +208,6 @@ class RepeatAccumulateDecoder
   public:
     RepeatAccumulateDecoder(const int (&order)[B * Q])
     {
-      int reverse_order[B * Q];
-      for (int o = 0; o < B * Q; o++) {
-        reverse_order[order[o]] = o;
-      }
-      int data_bit_index[B * Q];
-      int repeat_number[B * Q];
-      for (int data_bit = 0, o = 0; data_bit < B; data_bit++) {
-        for (int repeat = 0; repeat < Q; repeat++) {
-          data_bit_index[reverse_order[o]] = data_bit;
-          repeat_number[reverse_order[o]] = repeat;
-          o++;
-        }
-      }
       // Parity bits
       for (int j = 0; j < B * Q; j++) { // variable node
         for (int m = 0; m < variable_node_degree(j); m++) { // variable node input
@@ -235,8 +222,8 @@ class RepeatAccumulateDecoder
       // Data bits
       for (int i = 0; i < B * Q; i++) { // check node, and also parity bit
         int k = i ? 2 : 1; // check node input
-        int j = data_bit_index[i] + B * Q; // variable node connected to this check node
-        int m = repeat_number[i]; // variable node input
+        int j = order[i] / Q + B * Q; // variable node connected to this check node (from data bit index)
+        int m = order[i] % Q; // variable node input (from bit repeat number)
         cn_[i][k] = j;
         vn_input_[i][k] = m;
         vn_[j][m] = i;
