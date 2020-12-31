@@ -40,8 +40,16 @@ Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](ht
 
 To build Tanner graph, start by noting that it is possible to get original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with *b<sub>3</sub>* data bit, we should get a zero. This way we can construct a parity check node for each parity bit. All parity check nodes will have three inputs, except the first one that has two inputs (because first parity bit is transmitted as is).
 
-Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Once all parity checks are satisfied (or we reach maximum number of iterations, which usually means that some errors cannot be corrected), compare values held by variable nodes for data bits with zero to recover original bits.
+![Tanner graph example](images/tanner_graph.png)
+
+In this simplified Tanner graph with three bits of data and $Q=2$, the squares at the top represent check nodes, and circles at the bottom represent variable nodes.
+
+Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Here variable nodes 0 through 5 are parity bits, and 6 through 8 are data bits.
+
+Once all parity checks are satisfied (or we reach maximum number of iterations, which usually means that some errors cannot be corrected), compare values held by variable nodes for data bits with zero to recover original bits.
 
 Random interleaver has nice theoretical properties, *on average* and *in the limit*, but intuitively it's clear that not all random interleavers are equally good. For example, interleaver that does nothing is theoretically possible, albeit unlikely, and cannot be expected to work well because one would want the interleaver to avoid placing copies of the same bit close together.
 
-One way to enforce this requirement is to use *S*-random interleaver, where no input symbols within distance *S* appear within a distance of *S* in the output, with *S = Q*. Instead of trying to construct such interleaver, the code in this example just checks if randomly created interleaver is *S*-random, and keeps retrying with different seed if it is not. To save time, it starts with a known good seed that was found earlier.
+One way to enforce this requirement is to use *S*-random interleaver, where no input symbols within distance *S* appear within a distance of *S* in the output, with *S = Q*. Instead of trying to construct such interleaver, the code in this example checks if randomly created interleaver is *S*-random, and keeps retrying with different seed if it is not. To save time, it starts with a known good seed that was found earlier.
+
+More details on RA and other error correcting codes can be found [here](http://www.inference.org.uk/itprnn/book.pdf) (link goes straight to PDF).

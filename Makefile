@@ -1,4 +1,7 @@
-all: images/original.png
+all: images/original.png images/tanner-graph.png
+
+images/tanner-graph.png: images/tanner-graph.pic
+	pic2plot images/tanner-graph.pic -n -f 0.035 -T png --bitmap-size "900x900" | magick convert png:- -crop "900x350+0+0" images/tanner-graph.png	
 
 images/original.png: images/original.pbm
 	magick convert images/corrected_ra_01.pbm -scale "200%" images/corrected_ra_01.png
