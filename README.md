@@ -26,7 +26,7 @@ Enter the **Repeat-Accumulate algorithm**:
 
 * Transmit running total of the permuted bits, modulo 2. If bits are *b<sub>1</sub>*, *b<sub>2</sub>*, *b<sub>3</sub>*, etc. then send *b<sub>1</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, and so on.
 
-In this example RA code is used as a systematic code with *Q=3*. First 64x64x3 bits go through the above logic to create *parity bits*. The last 64x64 *data bits* contain a copy of the orginal.
+In this example RA code is used as a systematic code with *Q=3*. First 64x64 transmitted *data bits* contain a copy of the orginal, followed by 64x64x3 *parity bits* that were created using the above logic.
 
 Here is the transmitted message after adding exactly the same noise as in the first example:
 
@@ -44,7 +44,7 @@ To build Tanner graph, start by noting that it is possible to get original (perm
 
 In this simplified Tanner graph with three bits of data and *Q=2*, the squares at the top represent check nodes, and circles at the bottom represent variable nodes.
 
-Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Here variable nodes 0 through 5 are parity bits, and 6 through 8 are data bits.
+Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Here variable nodes 0 through 2 are data bits, and 3 through 8 are parity bits.
 
 Once all parity checks are satisfied (or we reach maximum number of iterations, which usually means that some errors cannot be corrected), compare values held by variable nodes for data bits with zero to recover original bits.
 

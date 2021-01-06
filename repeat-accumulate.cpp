@@ -170,6 +170,12 @@ class RepeatAccumulateEncoder
     // Sends original information bits at the end
     std::bitset<B * (Q + 1)> encode(const std::bitset<B> input) const
     {
+      // Start with systematic part (original data)
+      std::bitset<B * (Q + 1)> output;
+      for (int i = 0; i < B; i++) { 
+        output[i] = input[i];
+      }
+
       // Repeat every input bit Q times
       std::bitset<Q * B> repeated;
       for (int i = 0; i < B; i++) {
@@ -178,22 +184,11 @@ class RepeatAccumulateEncoder
         }
       }
   
-      // Interleave
-      std::bitset<B * (Q + 1)> output;
-      for (int i = 0; i < B * Q; i++) {
-        output[i] = repeated[order_[i]];
-      }
-  
-      // Accumulate
+      // Interleave and accumulate
       bool d = false;
       for (int i = 0; i < B * Q; i++) {
-        d ^= output[i];
-        output[i] = d;
-      }
-
-      // Append systematic part (original data)
-      for (int i = 0; i < B; i++) { 
-        output[B * Q + i] = input[i];
+        d ^= repeated[order_[i]];
+        output[i + B] = d;
       }
 
       return output;
@@ -208,36 +203,40 @@ class RepeatAccumulateDecoder
   public:
     RepeatAccumulateDecoder(const int (&order)[B * Q])
     {
-      // Parity bits
-      for (int j = 0; j < B * Q; j++) { // variable node
-        for (int m = 0; m < variable_node_degree(j); m++) { // variable node input
-          int i = j + m; // check node connected to this variable node
-          int k = j ? 1 - m : 0;// check node input
-          cn_[i][k] = j;
-          vn_input_[i][k] = m;
-          vn_[j][m] = i;
-          cn_input_[j][m] = k;
-        }
-      }
       // Data bits
       for (int i = 0; i < B * Q; i++) { // check node, and also parity bit
         int k = i ? 2 : 1; // check node input
-        int j = order[i] / Q + B * Q; // variable node connected to this check node (from data bit index)
+        int j = order[i] / Q; // variable node connected to this check node (from data bit index)
         int m = order[i] % Q; // variable node input (from bit repeat number)
         cn_[i][k] = j;
         vn_input_[i][k] = m;
         vn_[j][m] = i;
         cn_input_[j][m] = k;
       }
+      // Parity bits
+      for (int j = B; j < B + B * Q; j++) { // variable node
+        for (int m = 0; m < variable_node_degree(j); m++) { // variable node input
+          int i = j - B + m; // check node connected to this variable node
+          int k = j - B ? 1 - m : 0;// check node input
+          cn_[i][k] = j;
+          vn_input_[i][k] = m;
+          vn_[j][m] = i;
+          cn_input_[j][m] = k;
+        }
+      }
     }
 
     int variable_node_degree(int node) const {
-      if (node < B * Q - 1) {
+      if (node < 0) {
+        return 0; // should never happen
+      } else if (node < B) {
+        return Q;
+      } else if (node < B * Q + B - 1) {
         return 2;
-      } else if (node == B * Q - 1) {
+      } else if (node == B * Q + B - 1) {
         return 1;
       } else {
-        return Q;
+        return 0; // should never happen
       }
     }
 
@@ -311,7 +310,7 @@ class RepeatAccumulateDecoder
       }
       std::bitset<B> output;
       for (int i = 0; i < B; i++) {
-        output[i] = ans[B * Q + i];
+        output[i] = ans[i];
       }
       return output;
     }
