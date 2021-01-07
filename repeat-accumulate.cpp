@@ -5,10 +5,13 @@
 #include <bitset>
 #include <cmath>
 #include <random>
+#include <stdexcept>
 #include <stdio.h>
 
+// B * Q should be a multiple of A
 const int Q = 3; // number of bit repetitions
 const int B = 64 * 64; // number of information bits
+const int A = 1; // number of accumulated bits
 
 // Transmit by column rather than by row to use less screen real estate
 std::bitset<64 * 64> get_original_bits(void)
@@ -105,13 +108,13 @@ void write_pbm(const char* filename, const std::bitset<64 * 64> bits)
   }
 }
 
-void write_pgm(const char* filename, const double pieces[64 * 64 * (Q + 1)])
+void write_pgm(const char* filename, const double pieces[64 * 64 * (Q / A + 1)])
 {
   FILE* f = fopen(filename, "w");
   if (f) {
-    fprintf(f, "P2\n%d 64\n255\n", 64 * (Q + 1));
+    fprintf(f, "P2\n%d 64\n255\n", 64 * (Q / A + 1));
     for (int row = 0; row < 64; row++) {
-      for (int col = 0; col < 64 * (Q + 1); col++) {
+      for (int col = 0; col < 64 * (Q / A + 1); col++) {
         double intensity = (2. - pieces[col * 64 + row] / 2) * 256 / 4;
         if (intensity < 0) intensity = 0;
         if (intensity > 255) intensity = 255;
@@ -131,7 +134,7 @@ class RepeatAccumulateEncoder
     RepeatAccumulateEncoder()
     {
       unsigned seed = 1284167877; // Known good value to save time
-      for (int attempt = 0; attempt < 10000000; attempt++) {
+      for (int attempt = 0; attempt < 100000; attempt++) {
   
         // Start with ordered sequence, then shuffle it
         for (int i = 0; i < B * Q; i++) {
@@ -154,7 +157,7 @@ class RepeatAccumulateEncoder
           }
         }
         if (is_s_random) {
-          // printf("Interleaver is S-random, seed=%u, attempt=%d\n", seed, attempt);
+          printf("Interleaver is S-random, seed=%u, attempt=%d\n", seed, attempt);
           return;
         }
 
@@ -167,30 +170,25 @@ class RepeatAccumulateEncoder
     // Decoder will need to know the order
     const int (&order() const)[B * Q] { return order_; }
 
-    // Sends original information bits at the end
-    std::bitset<B * (Q + 1)> encode(const std::bitset<B> input) const
+    std::bitset<B + B * Q / A> encode(const std::bitset<B> input) const
     {
-      // Start with systematic part (original data)
-      std::bitset<B * (Q + 1)> output;
+      std::bitset<B + B * Q / A> output;
+ 
+      // Systematic part (data bits) first
       for (int i = 0; i < B; i++) { 
         output[i] = input[i];
       }
 
-      // Repeat every input bit Q times
-      std::bitset<Q * B> repeated;
-      for (int i = 0; i < B; i++) {
-        for (int j = 0; j < Q; j++) {
-          repeated[Q * i + j] = input[i];
+      // Followed by parity bits
+      bool d = false;
+      for (int i = 0, j = B; i < B * Q; i++) {
+        d ^= input[order_[i] / Q];
+        if (i % A == A - 1) {
+          output[j] = d;
+          j++;
         }
       }
-  
-      // Interleave and accumulate
-      bool d = false;
-      for (int i = 0; i < B * Q; i++) {
-        d ^= repeated[order_[i]];
-        output[i + B] = d;
-      }
-
+ 
       return output;
     }
 
@@ -204,17 +202,19 @@ class RepeatAccumulateDecoder
     RepeatAccumulateDecoder(const int (&order)[B * Q])
     {
       // Data bits
-      for (int i = 0; i < B * Q; i++) { // check node, and also parity bit
-        int k = i ? 2 : 1; // check node input
-        int j = order[i] / Q; // variable node connected to this check node (from data bit index)
-        int m = order[i] % Q; // variable node input (from bit repeat number)
-        cn_[i][k] = j;
-        vn_input_[i][k] = m;
-        vn_[j][m] = i;
-        cn_input_[j][m] = k;
+      for (int i = 0; i < B * Q / A; i++) { // check node, and also parity bit
+        for (int a = 0; a < A; a++) { // accumulated bit
+          int k = i ? a + 2 : a + 1; // check node input
+          int j = order[i * A + a] / Q; // variable node connected to this check node (from data bit index)
+          int m = order[i * A + a] % Q; // variable node input (from bit repeat number)
+          cn_[i][k] = j;
+          vn_input_[i][k] = m;
+          vn_[j][m] = i;
+          cn_input_[j][m] = k;
+        }
       }
       // Parity bits
-      for (int j = B; j < B + B * Q; j++) { // variable node
+      for (int j = B; j < B + B * Q / A; j++) { // variable node
         for (int m = 0; m < variable_node_degree(j); m++) { // variable node input
           int i = j - B + m; // check node connected to this variable node
           int k = j - B ? 1 - m : 0;// check node input
@@ -228,31 +228,39 @@ class RepeatAccumulateDecoder
 
     int variable_node_degree(int node) const {
       if (node < 0) {
-        return 0; // should never happen
+        throw std::invalid_argument("Negative variable node index");
       } else if (node < B) {
         return Q;
-      } else if (node < B * Q + B - 1) {
+      } else if (node < B + B * Q / A - 1) {
         return 2;
-      } else if (node == B * Q + B - 1) {
+      } else if (node == B + B * Q / A - 1) {
         return 1;
       } else {
-        return 0; // should never happen
+        throw std::invalid_argument("Variable node index too high");
       }
     }
 
     int check_node_degree(int node) const {
-      return node ? 3 : 2;
+      if (node < 0) {
+        throw std::invalid_argument("Negative check node index");
+      } else if (node == 0) {
+        return A + 1;
+      } else if (node < B * Q / A) {
+        return A + 2;
+      } else {
+        throw std::invalid_argument("Check node index too high");
+      }
     }
 
-    std::bitset<B> decode(const double llr[B * (Q + 1)], int itemax = 100) const
+    std::bitset<B> decode(const double llr[B + B * Q / A], int itemax = 1000) const
     {
-      double beta[B * Q + B][Q] = {}; // Messages from check nodes to bit nodes, initially all zeroes
-      double alpha[B * Q][3] = {}; // Messages from bit nodes to check nodes, initially all zeroes
-      int ans[B * (Q + 1)]; // Log likelihoods of transmitted bits
+      double beta[B + B * Q / A][Q] = {}; // Messages from check nodes to bit nodes, initially all zeroes
+      double alpha[B * Q / A][A + 2] = {}; // Messages from bit nodes to check nodes, initially all zeroes
+      int ans[B + B * Q / A]; // Log likelihoods of transmitted bits
       for (int iteration = 0; iteration < itemax; iteration++) {
 
         // Send messages from check nodes to bit nodes
-        for (int j = 0; j < B * (Q + 1); j++) {
+        for (int j = 0; j < B + B * Q / A; j++) {
           double alpha_sum = 0.0;
           double alpha_tmp[Q];
           for (int m = 0; m < variable_node_degree(j); m++) { 
@@ -270,7 +278,7 @@ class RepeatAccumulateDecoder
 
         // Stop iterating if all parity checks pass 
         bool all_parity_checks_ok = true;
-        for (int i = 0; i < B * Q; i++) {
+        for (int i = 0; i < B * Q / A; i++) {
           int check_bit = 0;
           for (int k = 0; k < check_node_degree(i); k++) {
             check_bit = check_bit ^ ans[cn_[i][k]];
@@ -287,7 +295,7 @@ class RepeatAccumulateDecoder
 
         // Send messages from bit nodes to check nodes
         if (iteration > 0) {
-          for (int i = 0; i < B * Q; i++) {
+          for (int i = 0; i < B * Q / A; i++) {
             for (int n = 0; n < check_node_degree(i); n++) { // will update alpha for this check node
               double beta_prod = 1.0;
               for (int k = 0; k < check_node_degree(i); k++) { // loop over variable nodes connected to this one
@@ -306,7 +314,6 @@ class RepeatAccumulateDecoder
             }
           }
         }
-    
       }
       std::bitset<B> output;
       for (int i = 0; i < B; i++) {
@@ -316,18 +323,18 @@ class RepeatAccumulateDecoder
     }
 
   private:
-    int vn_[B * (Q + 1)][Q]; // Which check node this variable node is connected to
-    int cn_input_[B * (Q + 1)][Q]; // Which input of the check node this connection goes to
-    int cn_[B * Q][3]; // Which variable node this check node is connected to
-    int vn_input_[B * Q][3]; // Which input of the variable node this connection goes to
+    int vn_[B + B * Q / A][Q]; // Which check node this variable node is connected to
+    int cn_input_[B + B * Q / A][Q]; // Which input of the check node this connection goes to
+    int cn_[B * Q / A][A + 2]; // Which variable node this check node is connected to
+    int vn_input_[B * Q / A][A + 2]; // Which input of the variable node this connection goes to
 };
 
-// Simple repeat encoder (sends original Q + 1 times)
-std::bitset<B * (Q + 1)> repeat_encode(const std::bitset<B> input)
+// Simple repeat encoder
+std::bitset<B * (1 + Q / A)> repeat_encode(const std::bitset<B> input)
 {
-  std::bitset<B * (Q + 1)> output;
+  std::bitset<B * (1 + Q / A)> output;
   for (int i = 0; i < B; i++) {
-    for (int j = 0; j <= Q; j++) {
+    for (int j = 0; j < 1 + Q / A; j++) {
       output[i + B * j] = input[i];
     }
   }
@@ -335,12 +342,12 @@ std::bitset<B * (Q + 1)> repeat_encode(const std::bitset<B> input)
 }
 
 // MLE repeat decoder: sum log likelihoods, compare with zero
-std::bitset<B> repeat_decode(const double received_repeat[B * (Q + 1)])
+std::bitset<B> repeat_decode(const double received_repeat[B * (1 + Q / A)])
 {
   std::bitset<B> corrected_repeat;
   for (int i = 0; i < B; i++) {
     double sum = 0;
-    for (int j = 0; j <= Q; j++) {
+    for (int j = 0; j < 1 + Q / A; j++) {
       sum += received_repeat[i + B * j];
     }
     if (sum > 0) {
@@ -354,7 +361,7 @@ std::bitset<B> repeat_decode(const double received_repeat[B * (Q + 1)])
 
 int main(void)
 {
-  const double rate = 1. / (Q + 1);
+  const double rate = 1. / (Q / A + 1);
   const double ebn0 = 1.; // Signal to noise ratio in dB
   const double variance = 1.0 / (rate * pow(10.0, ebn0 / 10.0)) * 0.5;
   printf("Coding rate = %g, SNR = %g dB\n", rate, ebn0);
@@ -363,10 +370,10 @@ int main(void)
   write_pbm("images/original.pbm", original);
 
   // Additive white gaussian noise
-  double noise[B * (Q + 1)];
+  double noise[B + B * Q / A];
   std::default_random_engine gen(42);
   std::normal_distribution<double> dist{0, sqrt(variance)};
-  for (int i = 0; i < B * (Q + 1); i++) {
+  for (int i = 0; i < B + B * Q / A; i++) {
     noise[i] = dist(gen);
   }
 
@@ -377,9 +384,9 @@ int main(void)
 
   // Simulate transmission over noisy channel
   // Encode each 0 bit as -1, 1 bit as +1, add noise
-  double received_repeat[B * (Q + 1)];
-  double received_ra[B * (Q + 1)];
-  for (int i = 0; i < B * (Q + 1); i++) {
+  double received_repeat[B + B * Q / A];
+  double received_ra[B + B * Q / A];
+  for (int i = 0; i < B + B * Q / A; i++) {
     received_repeat[i] = 2. * repeat_code[i] - 1 + noise[i];
     received_ra[i] = 2. * ra_code[i] - 1 + noise[i];
   }
@@ -388,9 +395,9 @@ int main(void)
 
   // Log likelihood ratio for received bits 
   // Divide PDFs of normal distribution with means +1 and -1 and given variance, then take the log
-  double llr_repeat[B * (Q + 1)];
-  double llr_ra[B * (Q + 1)];
-  for (int i = 0; i < B * (Q + 1); i++) {
+  double llr_repeat[B + B * Q / A];
+  double llr_ra[B + B * Q / A];
+  for (int i = 0; i < B + B * Q / A; i++) {
     llr_repeat[i] = -2.0 * received_repeat[i] / variance;
     llr_ra[i] = -2.0 * received_ra[i] / variance;
   }

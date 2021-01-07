@@ -24,9 +24,11 @@ Enter the **Repeat-Accumulate algorithm**:
 
 * Apply a random (but fixed) permutation, the same for each codeword. Receiver will need to know this permutation to decode
 
-* Transmit running total of the permuted bits, modulo 2. If bits are *b<sub>1</sub>*, *b<sub>2</sub>*, *b<sub>3</sub>*, etc. then send *b<sub>1</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, and so on.
+* Transmit running total of the permuted bits, modulo 2. If bits are *b<sub>1</sub>*, *b<sub>2</sub>*, *b<sub>3</sub>*, etc. then send *b<sub>1</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>*, then *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, and so on
 
 In this example RA code is used as a systematic code with *Q=3*. First 64x64 transmitted *data bits* contain a copy of the orginal, followed by 64x64x3 *parity bits* that were created using the above logic.
+
+Instead of sending all parity bits, it's possible to send every *A*th parity bit, with very little change in decoding logic. In this example *A=1*.
 
 Here is the transmitted message after adding exactly the same noise as in the first example:
 
