@@ -28,7 +28,7 @@ Enter the **Repeat-Accumulate algorithm**:
 
 In this example RA code is used as a systematic code with *Q=3*. First 64x64 transmitted *data bits* contain a copy of the orginal, followed by 64x64x3 *parity bits* that were created using the above logic.
 
-Instead of sending all parity bits, it's possible to send every *A*th parity bit, with very little change in decoding logic. In this example *A=1*.
+Instead of sending all parity bits, it's possible to send every *A*th parity bit, with very little change in decoding logic. But in this example *A=1*.
 
 Here is the transmitted message after adding exactly the same noise as in the first example:
 
@@ -42,7 +42,7 @@ Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](ht
 
 To build Tanner graph, start by noting that it is possible to get original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with *b<sub>3</sub>* data bit, we should get a zero. This way we can construct a parity check node for each parity bit. All parity check nodes will have three inputs, except the first one that has two inputs (because first parity bit is transmitted as is).
 
-![Tanner graph example](images/tanner_graph.png)
+![Tanner graph example](images/tanner-graph.png)
 
 In this simplified Tanner graph with three bits of data and *Q=2*, the squares at the top represent check nodes, and circles at the bottom represent variable nodes.
 
