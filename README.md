@@ -28,7 +28,7 @@ Enter the **Repeat-Accumulate algorithm**:
 
 In this example RA code is used as a systematic code with *Q=3*. First 64x64 transmitted *data bits* contain a copy of the orginal, followed by 64x64x3 *parity bits* that were created using the above logic.
 
-Instead of sending all parity bits, it's possible to send every *A*th parity bit, with very little change in decoding logic. But in this example *A=1*.
+Instead of sending all parity bits, it's possible to send every *A*th parity bit, with little change in decoding logic, but in this example *A=1*.
 
 Here is the transmitted message after adding exactly the same noise as in the first example:
 
@@ -40,7 +40,9 @@ Decoding algorithm is iterative. Intermediate results after 1, 10, 20, 30, 40 it
 
 Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](https://en.wikipedia.org/wiki/Belief_propagation) back and forth on [Tanner graph](https://en.wikipedia.org/wiki/Tanner_graph), in a way similar to [Viterbi algorithm](https://en.wikipedia.org/wiki/Viterbi_algorithm).
 
-To build Tanner graph, start by noting that it is possible to get original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with *b<sub>3</sub>* data bit, we should get a zero. This way we can construct a parity check node for each parity bit. All parity check nodes will have three inputs, except the first one that has two inputs (because first parity bit is transmitted as is).
+To build Tanner graph, start by noting that with *A=1* it is possible to get one original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with *b<sub>3</sub>* data bit, we should get a zero. Similarly, if *A>1* we'll get XOR of *A* original (permuted) bits.
+
+This allows to construct a parity check node for each parity bit. All parity check nodes have *A+2* inputs, except the first one that has *A+1* inputs (because first parity bit is transmitted as is).
 
 ![Tanner graph example](images/tanner-graph.png)
 
@@ -52,6 +54,6 @@ Once all parity checks are satisfied (or we reach maximum number of iterations, 
 
 Random interleaver has nice theoretical properties, *on average* and *in the limit*, but intuitively it's clear that not all random interleavers are equally good. For example, interleaver that does nothing is theoretically possible, albeit unlikely, and cannot be expected to work well because one would want the interleaver to avoid placing copies of the same bit close together.
 
-One way to enforce this requirement is to use *S*-random interleaver, where no input symbols within distance *S* appear within a distance of *S* in the output, with *S = Q*. Instead of trying to construct such interleaver, the code in this example checks if randomly created interleaver is *S*-random, and keeps retrying with different seed if it is not. To save time, it starts with a known good seed that was found earlier.
+One way to enforce this requirement is to use *S*-random interleaver, where no input symbols within distance *S* appear within a distance of *S* in the output, with *S = Q*. The code in this example uses Fisher-Yates shuffle. Before every swap it checks if the resulting interleaver is *S*-random, and if it is not, takes a step back and retries.
 
 More details on RA and other error correcting codes can be found [here](http://www.inference.org.uk/itprnn/book.pdf) (link goes straight to PDF).

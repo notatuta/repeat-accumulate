@@ -133,38 +133,40 @@ class RepeatAccumulateEncoder
   public:
     RepeatAccumulateEncoder()
     {
-      unsigned seed = 1284167877; // Known good value to save time
-      for (int attempt = 0; attempt < 100000; attempt++) {
-  
-        // Start with ordered sequence, then shuffle it
-        for (int i = 0; i < B * Q; i++) {
-          order_[i] = i;
-        }
-        std::mt19937_64 gen;
-        gen.seed(seed);
-        std::shuffle(order_, order_ + B * Q, gen);
+      unsigned seed = 123;
+      std::mt19937_64 gen;
+      gen.seed(seed);
 
-        // Check if interleaver is S-random (no input symbols within distance S 
-        // appear within a distance of S in the output) with S == Q
+      // Start with ordered sequence
+      for (int i = 0; i < B * Q; i++) {
+        order_[i] = i;
+      }
+
+      // Fisher-Yates shuffle with one extra condition: swap only if resulting interleaver is S-random 
+      // (no input symbols within distance S appear within a distance of S in the output) with S == Q
+      for (int i = 0; i < B * Q - 1; i++) {
+        std::uniform_int_distribution<int> dist(i, B * Q - 1);
+        auto j = dist(gen);
         bool is_s_random = true;
-        for (int i = 0; i < B * Q - 1 && is_s_random; i++) {
-          for (int j = i + 1; j < i + Q && j < B * Q; j++) {
-            int distance = order_[i] - order_[j];
-            if (distance < Q && distance > -Q) {
-              is_s_random = false;
-              break;
-            }
+        for (int back = 0; back < Q && i >= back; back++) {
+          int distance = order_[i - back] - order_[j];
+          if (distance < Q && distance > -Q) {
+            is_s_random = false;
+            break;
           }
         }
         if (is_s_random) {
-          printf("Interleaver is S-random, seed=%u, attempt=%d\n", seed, attempt);
-          return;
+          auto tmp = order_[i];
+          order_[i] = order_[j];
+          order_[j] = tmp;
+        } else {
+          if (i) { // Step back and try again
+            i--; 
+          } else {
+            throw std::logic_error("Could not make interleaver S-random");
+          }
         }
-
-        // Try different seed
-        seed = std::random_device{}();
       }
-      printf("Giving up, will use suboptimal interleaver\n");
     }
 
     // Decoder will need to know the order
