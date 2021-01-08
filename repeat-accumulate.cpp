@@ -363,7 +363,7 @@ std::bitset<B> repeat_decode(const double received_repeat[B * (1 + Q / A)])
 
 int main(void)
 {
-  const double rate = 1. / (Q / A + 1);
+  const double rate = 1. / ((double)Q / A + 1);
   const double ebn0 = 1.; // Signal to noise ratio in dB
   const double variance = 1.0 / (rate * pow(10.0, ebn0 / 10.0)) * 0.5;
   printf("Coding rate = %g, SNR = %g dB\n", rate, ebn0);
