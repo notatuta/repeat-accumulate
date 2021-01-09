@@ -40,15 +40,17 @@ Decoding algorithm is iterative. Intermediate results after 1, 10, 20, 30, 40 it
 
 Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](https://en.wikipedia.org/wiki/Belief_propagation) back and forth on [Tanner graph](https://en.wikipedia.org/wiki/Tanner_graph), in a way similar to [Viterbi algorithm](https://en.wikipedia.org/wiki/Viterbi_algorithm).
 
-To build Tanner graph, start by noting that with *A=1* it is possible to get one original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with *b<sub>3</sub>* data bit, we should get a zero. Similarly, if *A>1* we'll get XOR of *A* original (permuted) bits.
+To build Tanner graph, start by noting that with *A=1* it is possible to get one original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with corresponding data bit, we should get a zero.
 
-This allows to construct a parity check node for each parity bit. All parity check nodes have *A+2* inputs, except the first one that has *A+1* inputs (because first parity bit is transmitted as is).
+Similarly, if *A>1* then by XORing two censecutive parity bits we get XOR of *A* original (permuted) bits. And if we XOR that with corresponding data bits, we should again get a zero.
+
+This allows to construct one parity check node for each parity bit. All parity check nodes have *A+2* inputs, except the first one that has *A+1* inputs (because first parity bit is transmitted as is).
 
 ![Tanner graph example](images/tanner-graph.png)
 
 In this simplified Tanner graph with three bits of data and *Q=2*, the squares at the top represent check nodes, and circles at the bottom represent variable nodes.
 
-Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Here variable nodes 0 through 2 are data bits, and 3 through 8 are parity bits.
+Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Here variable nodes 0 through 2 (white circles) are data bits, and 3 through 8 (gray circles) are parity bits.
 
 Once all parity checks are satisfied (or we reach maximum number of iterations, which usually means that some errors cannot be corrected), compare values held by variable nodes for data bits with zero to recover original bits.
 
