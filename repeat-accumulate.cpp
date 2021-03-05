@@ -137,35 +137,16 @@ class RepeatAccumulateEncoder
       std::mt19937_64 gen;
       gen.seed(seed);
 
-      // Start with ordered sequence
+      // Fisher-Yates shuffle
       for (int i = 0; i < B * Q; i++) {
         order_[i] = i;
       }
-
-      // Fisher-Yates shuffle with one extra condition: swap only if resulting interleaver is S-random 
-      // (no input symbols within distance S appear within a distance of S in the output) with S == Q
       for (int i = 0; i < B * Q - 1; i++) {
         std::uniform_int_distribution<int> dist(i, B * Q - 1);
-        auto j = dist(gen);
-        bool is_s_random = true;
-        for (int back = 0; back < Q && i >= back; back++) {
-          int distance = order_[i - back] - order_[j];
-          if (distance < Q && distance > -Q) {
-            is_s_random = false;
-            break;
-          }
-        }
-        if (is_s_random) {
-          auto tmp = order_[i];
-          order_[i] = order_[j];
-          order_[j] = tmp;
-        } else {
-          if (i) { // Step back and try again
-            i--; 
-          } else {
-            throw std::logic_error("Could not make interleaver S-random");
-          }
-        }
+        auto k = dist(gen);
+        auto tmp = order_[i];
+        order_[i] = order_[k];
+        order_[k] = tmp;
       }
     }
 

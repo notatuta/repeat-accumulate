@@ -40,7 +40,7 @@ Decoding algorithm is iterative. Intermediate results after 1, 10, 20, 30, 40 it
 
 Decoding algorithm is borrowed from LDPC codes. It's using [passing messages](https://en.wikipedia.org/wiki/Belief_propagation) back and forth on [Tanner graph](https://en.wikipedia.org/wiki/Tanner_graph), in a way similar to [Viterbi algorithm](https://en.wikipedia.org/wiki/Viterbi_algorithm).
 
-To build Tanner graph, start by noting that with *A=1* it is possible to get one original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3)</sub>=b<sub>3</sub>*. And if we XOR it with corresponding data bit, we should get a zero.
+To build Tanner graph, start by noting that with *A=1* it is possible to get one original (permuted) bit by XORing two consecutive transmitted parity bits. For example, if *b<sub>1</sub>&oplus;b<sub>2</sub>* is followed by *b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>*, then *(b<sub>1</sub>&oplus;b<sub>2</sub>)&oplus;(b<sub>1</sub>&oplus;b<sub>2</sub>&oplus;b<sub>3</sub>)=b<sub>3</sub>*. And if we XOR it with corresponding data bit, we should get a zero.
 
 Similarly, if *A>1* then by XORing two censecutive parity bits we get XOR of *A* original (permuted) bits. And if we XOR that with corresponding data bits, we should again get a zero.
 
@@ -48,14 +48,11 @@ This allows to construct one parity check node for each parity bit. All parity c
 
 ![Tanner graph example](images/tanner-graph.png)
 
-In this simplified Tanner graph with three bits of data and *Q=2*, the squares at the top represent check nodes, and circles at the bottom represent variable nodes.
+In this simplified Tanner graph with three bits of data and *Q=2*, the squares at the top represent check nodes, and circles at the bottom represent variable nodes. Variable nodes correspond to transmitted bits and therefore are of two kinds: 
 
-Variable nodes are of two kinds: *parity bits* with two inputs (except the last one that has one input), and *data bits* with *Q* inputs. Here variable nodes 0 through 2 (white circles) are data bits, and 3 through 8 (gray circles) are parity bits.
+* *data bits* represented by white circles 0 through 2. Each data variable node has *Q* inputs, 
+* *parity bits* represented by gray circles 3 through 8. Each parity variable node has two inputs, except the last one that only has one
 
-Once all parity checks are satisfied (or we reach maximum number of iterations, which usually means that some errors cannot be corrected), compare values held by variable nodes for data bits with zero to recover original bits.
-
-Random interleaver has nice theoretical properties, *on average* and *in the limit*, but intuitively it's clear that not all random interleavers are equally good. For example, interleaver that does nothing is theoretically possible, albeit unlikely, and cannot be expected to work well because one would want the interleaver to avoid placing copies of the same bit close together.
-
-One way to enforce this requirement is to use *S*-random interleaver, where no input symbols within distance *S* appear within a distance of *S* in the output, with *S = Q*. The code in this example uses Fisher-Yates shuffle. Before every swap it checks if the resulting interleaver is *S*-random, and if it is not, takes a step back and retries.
+The algorithm stops once all parity checks are satisfied (or we reach maximum number of iterations, which usually means that some errors cannot be corrected). At this point variable nodes contain best estimate of original bits.
 
 More details on RA and other error correcting codes can be found [here](http://www.inference.org.uk/itprnn/book.pdf) (link goes straight to PDF).
